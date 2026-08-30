@@ -1,6 +1,10 @@
 setup: install db-migrate
 
+# Автопроверка Hexlet вызывает эту цель вне контейнера, на голом раннере с
+# одним лишь node, поэтому pnpm при отсутствии ставится на месте. Внутри
+# образа он уже глобальный, и проверка ничего не делает.
 install:
+	command -v pnpm >/dev/null 2>&1 || npm install -g pnpm@11.20.0
 	pnpm install
 
 db-migrate:
