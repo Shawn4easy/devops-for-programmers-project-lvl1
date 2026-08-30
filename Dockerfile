@@ -1,43 +1,20 @@
-# Сборка отделена от финального образа: better-sqlite3 компилируется из
-# исходников, для этого нужны python3 и g++, и тащить их в рантайм незачем.
-FROM node:26-slim AS builder
+# Образ для разработки. Файлы внутрь не копируются: код приезжает томом
+# ./app:/app из docker-compose.override.yml, а зависимости ставятся отдельным
+# шагом `make setup` в том /app/node_modules. Копирование в образ живёт только
+# в Dockerfile.production.
+FROM node:26-slim
 
 # corepack из образов Node 26 убран, поэтому pnpm ставится напрямую. Версия
 # берётся из поля packageManager, чтобы образ и разработка совпадали.
 RUN npm install -g pnpm@11.20.0
 
+# make нужен для команд приложения из app/Makefile.
+# python3 и g++ — для better-sqlite3: он компилируется из исходников на
+# `make setup`, а установка здесь идёт в примонтированный том, не в образ.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      python3 make g++ \
+      make python3 g++ \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Зависимости ставятся до копирования кода, чтобы слой с ними переиспользовался
-# и не пересобирался на каждую правку исходников.
-COPY app/package.json app/pnpm-lock.yaml app/pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile
-
-COPY app/. .
-RUN pnpm run build
-
-FROM node:26-slim
-
-# make нужен в рантайме: команды приложения живут в Makefile.
-RUN apt-get update && apt-get install -y --no-install-recommends make \
-  && rm -rf /var/lib/apt/lists/* \
-  && npm install -g pnpm@11.20.0
-
-WORKDIR /app
-COPY --from=builder /app /app
-
-# Порт не задаётся: fastify-cli по умолчанию слушает 3000, и на этот порт
-# рассчитан урок docker_basics_course/600-network, где контейнер запускают
-# как `docker run -p 8080:3000`.
-#
-# Адрес обязателен: на 127.0.0.1 сервер внутри контейнера снаружи недоступен,
-# ровно об этом урок и рассказывает.
-#
-# Флаг -o обязателен тоже: без него fastify-cli не читает экспорт `options` из
-# плагина и регистрирует его дважды, падая с «Route with name root already
-# registered».
-CMD ["pnpm", "exec", "fastify", "start", "-a", "0.0.0.0", "-l", "info", "-P", "-o", "server/plugin.js"]
+CMD ["make", "dev"]
