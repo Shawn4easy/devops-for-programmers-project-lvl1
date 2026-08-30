@@ -11,3 +11,22 @@ services:
     volumes:
       - ./app:/app
       - /app/node_modules
+
+  caddy:
+    image: caddy:2
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./services/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Тома из документации образа: в data лежит самоподписной корневой
+      # сертификат, который создаёт `tls internal`. Без тома он генерируется
+      # заново на каждый пересозданный контейнер.
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
