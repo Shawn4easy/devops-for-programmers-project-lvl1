@@ -5,6 +5,10 @@ services:
     image: devops-for-programmers-project-lvl1-dev
     build:
       dockerfile: Dockerfile
+    # Тега нет ни в одном реестре, он собирается на месте. Без этой строки
+    # `docker compose pull` пытается его скачать и падает с pull access denied,
+    # на чём и спотыкается автопроверка Hexlet.
+    pull_policy: build
     command: make dev
     ports:
       - "8080:8080"
