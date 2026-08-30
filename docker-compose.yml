@@ -1,0 +1,7 @@
+services:
+  app:
+    image: shawn4easy/devops-for-programmers-project-lvl1
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    command: make test

@@ -1,0 +1,13 @@
+services:
+  app:
+    # Собственный тег, чтобы дев-сборка не перетирала локально образ,
+    # который уходит на Docker Hub из docker-compose.yml.
+    image: devops-for-programmers-project-lvl1-dev
+    build:
+      dockerfile: Dockerfile
+    command: make dev
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./app:/app
+      - /app/node_modules

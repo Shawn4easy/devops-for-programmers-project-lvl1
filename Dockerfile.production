@@ -1,0 +1,44 @@
+# Сборка отделена от финального образа по той же причине, что и в Dockerfile:
+# better-sqlite3 компилируется из исходников, для этого нужны python3 и g++,
+# и тащить компилятор в рантайм незачем.
+FROM node:26-slim AS builder
+
+# Версия берётся из поля packageManager в app/package.json, чтобы образ
+# и локальная разработка совпадали.
+RUN npm install -g pnpm@11.20.0
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Важно для кеширования слоев
+COPY app/package.json package.json
+COPY app/pnpm-lock.yaml pnpm-lock.yaml
+COPY app/pnpm-workspace.yaml pnpm-workspace.yaml
+
+RUN pnpm install --frozen-lockfile
+
+COPY app/. .
+
+# NODE_ENV выставляется после установки зависимостей. Поставь его раньше --
+# pnpm пропустит devDependencies, и в образе не окажется ни webpack для сборки
+# фронтенда, ни vitest, которым docker-compose.yml прогоняет тесты.
+ENV NODE_ENV=production
+RUN make build
+
+FROM node:26-slim
+
+# make нужен в рантайме: команды приложения живут в Makefile.
+RUN apt-get update && apt-get install -y --no-install-recommends make \
+  && rm -rf /var/lib/apt/lists/* \
+  && npm install -g pnpm@11.20.0
+
+WORKDIR /app
+COPY --from=builder /app /app
+
+EXPOSE 8080
+ENV NODE_ENV=production
+
+CMD make start
